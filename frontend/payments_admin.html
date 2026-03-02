@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPI Settings - Merchant</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dark-theme">
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-logo"><a href="index.html">Spoonful</a></div>
+        </div>
+    </nav>
+
+    <section class="container" style="padding:2rem 20px;">
+        <h2>Merchant UPI Settings</h2>
+        <p>Set your UPI ID and QR image URL. Customers paying via UPI will see this info at checkout.</p>
+
+        <div class="settings-card" style="max-width:720px;padding:1rem;border-radius:8px;background:rgba(255,255,255,0.02);">
+            <div style="margin-bottom:0.8rem;">
+                <label for="upiNumber">UPI ID</label>
+                <input id="upiNumber" class="input" placeholder="example@upi" style="width:100%;padding:0.6rem;margin-top:0.4rem;border-radius:6px;border:1px solid #ddd;background:transparent;color:inherit;">
+            </div>
+            <div style="margin-bottom:0.8rem;">
+                <label for="qrUrl">QR Image URL (optional)</label>
+                <input id="qrUrl" class="input" placeholder="https://.../qr.png" style="width:100%;padding:0.6rem;margin-top:0.4rem;border-radius:6px;border:1px solid #ddd;background:transparent;color:inherit;">
+                <div style="margin-top:0.6rem;color:#b0b0c0;font-size:0.95rem;">Or upload a QR image file (recommended):</div>
+                <input type="file" id="qrFile" accept="image/*" style="margin-top:0.25rem;color:inherit;">
+                <div id="qrPreview" style="margin-top:0.6rem;display:flex;gap:0.6rem;align-items:center;">
+                    <!-- Preview will be inserted here -->
+                </div>
+            </div>
+            <div style="display:flex;gap:0.6rem;">
+                <button class="btn btn-primary" id="saveUpiBtn">Save UPI Settings</button>
+                <button class="btn btn-secondary" id="reloadUpiBtn">Reload</button>
+            </div>
+            <div id="saveMessage" style="margin-top:0.8rem;color:#b0b0c0;"></div>
+        </div>
+
+        <div style="margin-top:1rem;">
+            <p><strong>Notes:</strong> You can upload your QR image to an image-hosting service and paste the public URL here. For production, integrate with secure storage and admin authentication.</p>
+        </div>
+    </section>
+
+    <script src="js/script.js"></script>
+    <script>
+        async function loadUpiConfig() {
+            try {
+                const res = await fetch('/api/cart/upi');
+                const data = await res.json();
+                if (data.success) {
+                    const cfg = data.data || {};
+                    // Default to merchant UPI if server has none
+                    document.getElementById('upiNumber').value = cfg.upiNumber || '7592037434@fam';
+                    document.getElementById('qrUrl').value = cfg.qrUrl || '';
+                } else {
+                    document.getElementById('saveMessage').textContent = data.message || 'Unable to load UPI config';
+                }
+
+                // Show preview if qrUrl present
+                if (data.success && data.data && data.data.qrUrl) {
+                    const preview = document.getElementById('qrPreview');
+                    preview.innerHTML = `<img src="${data.data.qrUrl}" alt="QR" style="max-width:120px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);">`;
+                } else {
+                    const preview = document.getElementById('qrPreview');
+                    preview.innerHTML = '';
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('saveMessage').textContent = 'Error loading UPI config';
+            }
+        }
+
+        document.getElementById('saveUpiBtn').addEventListener('click', async () => {
+            const upiNumber = document.getElementById('upiNumber').value.trim();
+            let qrUrl = document.getElementById('qrUrl').value.trim();
+            const fileInput = document.getElementById('qrFile');
+
+            if (!upiNumber) {
+                showNotification('❌ Please enter a UPI ID', 'error');
+                return;
+            }
+
+            try {
+                // If a file is selected, upload it first
+                if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                    const formData = new FormData();
+                    formData.append('qrImage', fileInput.files[0]);
+                    const uploadRes = await fetch('/api/cart/upload-qr', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const uploadData = await uploadRes.json();
+                    if (uploadData.success) {
+                        qrUrl = uploadData.data.qrUrl; // Use returned path
+                        document.getElementById('qrUrl').value = qrUrl;
+                    } else {
+                        showNotification('❌ QR upload failed: ' + (uploadData.message || ''), 'error');
+                        return;
+                    }
+                }
+
+                // Save settings (upiNumber + qrUrl)
+                const res = await fetch('/api/cart/upi', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ upiNumber, qrUrl })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification('✅ UPI settings saved', 'success');
+                } else {
+                    showNotification('❌ ' + (data.message || 'Failed to save'), 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showNotification('❌ Error saving UPI settings', 'error');
+            }
+        });
+
+        document.getElementById('reloadUpiBtn').addEventListener('click', loadUpiConfig);
+        document.getElementById('qrFile').addEventListener('change', function(e){
+            const file = e.target.files[0];
+            const preview = document.getElementById('qrPreview');
+            if (file) {
+                const url = URL.createObjectURL(file);
+                preview.innerHTML = `<img src="${url}" alt="QR Preview" style="max-width:120px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);">`;
+            } else {
+                preview.innerHTML = '';
+            }
+        });
+        loadUpiConfig();
+    </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Table",
+  "type": "object",
+  "properties": {
+    "id": { "type": ["string", "integer"], "description": "Unique identifier" },
+    "tableNumber": { "type": "string", "description": "Human-friendly table number/label" },
+    "x_position": { "type": "number", "description": "X coordinate in map units" },
+    "y_position": { "type": "number", "description": "Y coordinate in map units" },
+    "shape": { "type": "string", "enum": ["circle", "rect"], "description": "Table shape" },
+    "capacity": { "type": "integer", "minimum": 1, "description": "Number of seats" },
+    "status": { "type": "string", "enum": ["available", "occupied", "reserved"], "description": "Current table status" },
+    "width": { "type": "number", "description": "Optional width for rect tables (map units)" },
+    "height": { "type": "number", "description": "Optional height for rect tables (map units)" },
+    "radius": { "type": "number", "description": "Optional radius for circle tables (map units)" },
+    "notes": { "type": "string", "description": "Optional notes for staff or guests" },
+    "guest": { "type": "string", "description": "Optional current reservation guest name" }
+  },
+  "required": ["id", "tableNumber", "x_position", "y_position", "shape", "capacity", "status"]
+}
